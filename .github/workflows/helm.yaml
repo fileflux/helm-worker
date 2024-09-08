@@ -47,13 +47,17 @@ jobs:
       - name: Create Helm package
         run: helm package .
 
+      - name: Configure Git for GitHub Actions
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git"
+
       - name: Create Git Tag
         id: tag
         run: |
           VERSION=$(grep '^version' ./Chart.yaml | cut -d ' ' -f 2)
           echo "Version: $VERSION"
-          git config --global user.name "lokesh1306"
-          git config --global user.email "challagulla.l@northeastern.edu"
           git tag "v$VERSION"
           git push origin "v$VERSION"
 
