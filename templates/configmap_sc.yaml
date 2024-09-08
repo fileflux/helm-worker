@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-creator-script
+  namespace: lifecycle
+  labels:
+    {{- include "s3worker.labels" . | nindent 4 }}
+data:
+  service-creator.sh: |
+    #!/bin/bash
+    set -e
+
+    # Get existing ClusterIP services in s3 namespace starting with "i-"
+    EXISTING_SERVICES=$(kubectl get svc -n s3 -o json | jq -r '.items[] | select(.spec.type == "ClusterIP") | .metadata.name | select(startswith("i-"))')
+
+    # Get node-id labels of all s3worker pods in s3 namespace
+    CURRENT_SERVICES=$(kubectl get pods -n s3 -o json | jq -r '.items[] | select(.metadata.name | startswith("s3worker")) | .metadata.labels["node-id"] | select(startswith("i-"))' | sort | uniq)
+
+    echo "Existing services: $EXISTING_SERVICES"
+    echo "Current services: $CURRENT_SERVICES"
+
+    # Create services for node-ids that don't have a corresponding service
+    for NODE_ID in $CURRENT_SERVICES; do
+      if ! echo "$EXISTING_SERVICES" | grep -q "^$NODE_ID$"; then
+        echo "Checking if service $NODE_ID exists"
+        if kubectl get svc $NODE_ID -n s3 &>/dev/null; then
+          echo "Service $NODE_ID already exists"
+        else
+          echo "Creating service for $NODE_ID"
+          kubectl apply -f - <<EOF
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: $NODE_ID
+      namespace: s3
+    spec:
+      selector:
+        node-id: $NODE_ID
+        type: worker
+      ports:
+      - protocol: TCP
+        port: 8080
+        targetPort: 8080
+      type: ClusterIP
+    EOF
+        fi
+      else
+        echo "Service for $NODE_ID is in EXISTING_SERVICES list"
+      fi
+    done
+
+    # Delete services that don't have corresponding node-ids
+    for SERVICE in $EXISTING_SERVICES; do
+      if ! echo "$CURRENT_SERVICES" | grep -q "^$SERVICE$"; then
+        echo "Deleting orphaned service $SERVICE"
+        kubectl delete svc $SERVICE -n s3
+      else
+        echo "Service $SERVICE has a corresponding node-id"
+      fi
+    done

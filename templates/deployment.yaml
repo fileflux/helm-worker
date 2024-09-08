@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "s3worker.fullname" . }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "s3worker.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "s3worker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "s3worker.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                /usr/local/bin/liveness.sh
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                /usr/local/bin/readiness.sh
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          env:
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_PASSWORD
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_HOST
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_NAME
+          - name: DB_PORT
+            value: "26257"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

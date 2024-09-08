@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: heartbeat
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: heartbeat
+spec:
+  selector:
+    matchLabels:
+      app: heartbeat
+  template:
+    metadata:
+      labels:
+        app: heartbeat
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.imagehb.repository }}:{{ .Values.imagehb.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.imagehb.pullPolicy }}
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                /usr/local/bin/liveness.sh
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          readinessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - |
+                /usr/local/bin/readiness.sh
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.readinessProbe.successThreshold }}
+          env:
+          - name: DB_USER
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_PASSWORD
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_HOST
+          - name: DB_NAME
+            valueFrom:
+              secretKeyRef:
+                name: db-secrets
+                key: DB_NAME
+          - name: DB_PORT
+            value: "26257"
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

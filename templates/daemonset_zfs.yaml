@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Values.zfs.name }}
+  namespace: {{ .Values.zfs.namespace }}
+  labels:
+    {{- include "zfs.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "zfs.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false" 
+        prometheus.io/scrape: "true"  
+        prometheus.io/port: "9134"    
+        prometheus.io/path: "/metrics"  
+      labels:
+        {{- include "zfs.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      containers:
+        - name: {{ .Values.zfs.name }}
+          image: {{ .Values.zfs.image }}
+          imagePullPolicy: {{ .Values.zfs.pullPolicy }}
+          ports:
+            - containerPort: 9134
+          securityContext:
+            privileged: true
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+          - name: zfs
+            mountPath: /s3
+          - name: zfs-binaries
+            mountPath: /usr/sbin/zpool
+            subPath: zpool
+          - name: zfs-binaries
+            mountPath: /usr/sbin/zfs
+            subPath: zfs
+      volumes:
+      - name: zfs
+        hostPath:
+          path: /s3
+      - name: zfs-binaries
+        hostPath:
+          path: /usr/sbin
