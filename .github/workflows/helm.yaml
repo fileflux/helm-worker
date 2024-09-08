@@ -47,6 +47,16 @@ jobs:
       - name: Create Helm package
         run: helm package .
 
+      - name: Create Git Tag
+        id: tag
+        run: |
+          VERSION=$(grep '^version' ./Chart.yaml | cut -d ' ' -f 2)
+          echo "Version: $VERSION"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
       - name: Upload Helm package as GitHub release asset
         uses: softprops/action-gh-release@v1
         with:
