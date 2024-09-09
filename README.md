@@ -75,12 +75,12 @@ Check the status of the pods:
 kubectl get pods -n s3 -l app=s3worker
 ```
 
-View the logs of the manager application:
+View the logs of the worker application:
 ```bash
 kubectl logs -n s3 -l app=s3worker -f
 ```
 
-Access the shell of the manager pod for debugging:
+Access the shell of the worker pod for debugging:
 ```bash
 kubectl exec -it <s3worker-pod-name> -n s3 -- sh
 ```
