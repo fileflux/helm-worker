@@ -118,6 +118,15 @@ helm uninstall s3worker -n s3
 
 The command removes all the Kubernetes components associated with the chart.
 
+## GitHub Actions Workflow
+
+A GitHub Actions workflow is included to lint and dry-run the Helm chart and subsequently create a tag and publish the chart to the GitHub repository.
+
+This workflow:
+1. Checks the code and sets up Terraform.
+2. Setups Helm and runs `helm lint` to lint the Helm chart, followed by `helm template` to dry-run the Helm chart.
+4. Gets the chart version from the `Chart.yaml` file, creates a tag, packages the chart, and publishes it to the GitHub repository.
+
 ## Additional Information
 
 This helm chart is primarly designed to be used in the FileFlux project and is automatically deployed using ArgoCD. The chart can be used independently by providing the necessary configurations and dependencies however, it is recommended deploy and manage this chart via ArgoCD in the FileFlux project for seamless integration and deployment. Note that it is necessary to have the AWS infrastructure setup using Terraform and the CockroachDB Helm chart deployed before deploying this chart.
